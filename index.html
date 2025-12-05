@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+<title>Chrome Dino Runner - Muhammad Sodiq Edition</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+
+<style>
+
+  * {
+
+    margin: 0;
+
+    padding: 0;
+
+    box-sizing: border-box;
+
+  }
+
+  body {
+
+    background: linear-gradient(135deg, #87CEEB 0%, #E0F6FF 100%);
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    min-height: 100vh;
+
+    margin: 0;
+
+    padding: 10px;
+
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+    overflow: hidden;
+
+    touch-action: none;
+
+  }
+
+  .game-container {
+
+    position: relative;
+
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+
+    border-radius: 10px;
+
+    overflow: hidden;
+
+    max-width: 100%;
+
+    max-height: 100vh;
+
+    width: 100%;
+
+    height: auto;
+
+  }
+
+  canvas {
+
+    background: linear-gradient(to bottom, #f7f7f7 0%, #ffffff 100%);
+
+    display: block;
+
+    width: 100%;
+
+    height: auto;
+
+    max-width: 100%;
+
+    max-height: 100vh;
+
+    image-rendering: pixelated;
+
+    image-rendering: -moz-crisp-edges;
+
+    image-rendering: crisp-edges;
+
+  }
+
+  .ui-overlay {
+
+    position: absolute;
+
+    top: 10px;
+
+    left: 10px;
+
+    color: #535353;
+
+    font-size: clamp(14px, 4vw, 24px);
+
+    font-weight: bold;
+
+    text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
+
+    z-index: 10;
+
+  }
+
+  
+
+  /* Mobile responsive styles */
+
+  @media screen and (max-width: 768px) {
+
+    body {
+
+      padding: 5px;
+
+    }
+
+    
+
+    .game-container {
+
+      border-radius: 5px;
+
+    }
+
+    
+
+    .ui-overlay {
+
+      top: 5px;
+
+      left: 5px;
+
+      font-size: 16px;
+
+    }
+
+    
+
+    .ui-overlay div {
+
+      font-size: 14px;
+
+      margin-top: 2px;
+
+    }
+
+  }
+
+  
+
+  @media screen and (max-width: 480px) {
+
+    .ui-overlay {
+
+      font-size: 14px;
+
+    }
+
+    
+
+    .ui-overlay div {
+
+      font-size: 12px;
+
+    }
+
+  }
+
+</style>
+
+</head>
+
+<body>
+
+<div class="game-container">
+
+  <div class="ui-overlay">
+
+    <div>Score: <span id="scoreDisplay">0</span></div>
+
+    <div style="font-size: 16px; margin-top: 5px;">High Score: <span id="highScoreDisplay">0</span></div>
+
+  </div>
+
+  <canvas id="game" width="1200" height="400"></canvas>
+
+</div>
+
+<script>
+
+// ========================
+
+// HIGH-QUALITY CHROME DINOSAUR GAME
+
+// WITH "MUHAMMAD SODIQ" TEXT
+
+// ========================
+
+
+
+const canvas = document.getElementById("game");
+
+const ctx = canvas.getContext("2d");
+
+ctx.imageSmoothingEnabled = true;
+
+ctx.imageSmoothingQuality = "high";
+
+
+
+// Game settings
+
+let gravity = 0.8;
+
+let jumpForce = -14;
+
+let baseGameSpeed = 8;
+
+let gameSpeed = baseGameSpeed;
+
+let score = 0;
+
+let highScore = localStorage.getItem('dinoHighScore') || 0;
+
+let isGameOver = false;
+
+let frameCount = 0;
+
+let groundOffset = 0;
+
+
+
+// Godzilla character
+
+let godzilla = {
+
+  x: 100,
+
+  y: 260,  // Lifted higher to be above ground (ground is at 380, Godzilla height ~120px)
+
+  width: 60,
+
+  height: 80,
+
+  dy: 0,
+
+  jumping: false,
+
+  frame: 0
+
+};
+
+// Birds array (like Chrome Dino)
+
+let birds = [];
+
+
+
+// Clouds array
+
+let clouds = [];
+
+for (let i = 0; i < 5; i++) {
+
+  clouds.push({
+
+    x: Math.random() * canvas.width * 2,
+
+    y: 50 + Math.random() * 100,
+
+    width: 60 + Math.random() * 40,
+
+    height: 30 + Math.random() * 20,
+
+    speed: 0.5 + Math.random() * 0.5
+
+  });
+
+}
+
+
+
+// Gorillas array (replacing obstacles)
+
+let gorillas = [];
+
+
+
+// Particle system for effects
+
+let particles = [];
+
+// Text particles for "Muhammad Sodiq" effect
+
+let textParticles = [];
+
+
+
+// Initialize high score display
+
+document.getElementById('highScoreDisplay').textContent = highScore;
+
+
+
+// Godzilla Sprite
+
+function drawGodzilla() {
+
+  const x = godzilla.x;
+
+  const y = godzilla.y;
+
+  const scale = 1.5;
+
+  
+
+  ctx.save();
+
+  ctx.translate(x, y);
+
+  ctx.imageSmoothingEnabled = false;
+
+  
+
+  // Godzilla colors
+
+  const bodyColor = "#2d5016"; // Dark green
+
+  const bellyColor = "#4a7c2a"; // Lighter green
+
+  const spineColor = "#1a3009"; // Darker green for spines
+
+  
+
+  // Body (large and powerful)
+
+  ctx.fillStyle = bodyColor;
+
+  ctx.fillRect(5 * scale, 20 * scale, 30 * scale, 40 * scale);
+
+  
+
+  // Belly
+
+  ctx.fillStyle = bellyColor;
+
+  ctx.fillRect(8 * scale, 35 * scale, 24 * scale, 20 * scale);
+
+  
+
+  // Head
+
+  ctx.fillStyle = bodyColor;
+
+  ctx.fillRect(10 * scale, 0 * scale, 20 * scale, 25 * scale);
+
+  
+
+  // Eyes (glowing)
+
+  ctx.fillStyle = "#ff0000"; // Red glowing eyes
+
+  ctx.fillRect(13 * scale, 5 * scale, 3 * scale, 3 * scale);
+
+  ctx.fillRect(24 * scale, 5 * scale, 3 * scale, 3 * scale);
+
+  
+
+  ctx.fillStyle = "#ffff00"; // Yellow center
+
+  ctx.fillRect(13.5 * scale, 5.5 * scale, 2 * scale, 2 * scale);
+
+  ctx.fillRect(24.5 * scale, 5.5 * scale, 2 * scale, 2 * scale);
+
+  
+
+  // Mouth/teeth
+
+  ctx.fillStyle = "#000";
+
+  ctx.fillRect(12 * scale, 12 * scale, 16 * scale, 2 * scale);
+
+  ctx.fillStyle = "#fff";
+
+  ctx.fillRect(13 * scale, 14 * scale, 2 * scale, 3 * scale);
+
+  ctx.fillRect(17 * scale, 14 * scale, 2 * scale, 3 * scale);
+
+  ctx.fillRect(21 * scale, 14 * scale, 2 * scale, 3 * scale);
+
+  ctx.fillRect(25 * scale, 14 * scale, 2 * scale, 3 * scale);
+
+  
+
+  // Spines on back
+
+  ctx.fillStyle = spineColor;
+
+  for (let i = 0; i < 5; i++) {
+
+    const spineX = 8 * scale + i * 6 * scale;
+
+    const spineY = 10 * scale + i * 3 * scale;
+
+    ctx.beginPath();
+
+    ctx.moveTo(spineX, spineY);
+
+    ctx.lineTo(spineX + 3 * scale, spineY - 8 * scale);
+
+    ctx.lineTo(spineX + 6 * scale, spineY);
+
+    ctx.closePath();
+
+    ctx.fill();
+
+  }
+
+  
+
+  // Arms
+
+  ctx.fillStyle = bodyColor;
+
+  const armFrame = Math.floor(frameCount / 6) % 2;
+
+  if (armFrame === 0) {
+
+    ctx.fillRect(0 * scale, 25 * scale, 8 * scale, 12 * scale);
+
+    ctx.fillRect(32 * scale, 25 * scale, 8 * scale, 12 * scale);
+
+  } else {
+
+    ctx.fillRect(2 * scale, 25 * scale, 8 * scale, 12 * scale);
+
+    ctx.fillRect(30 * scale, 25 * scale, 8 * scale, 12 * scale);
+
+  }
+
+  
+
+  // Legs - animated running
+
+  const legFrame = Math.floor(frameCount / 6) % 2;
+
+  
+
+  if (godzilla.jumping) {
+
+    ctx.fillRect(10 * scale, 60 * scale, 8 * scale, 20 * scale);
+
+    ctx.fillRect(22 * scale, 60 * scale, 8 * scale, 20 * scale);
+
+  } else if (legFrame === 0) {
+
+    ctx.fillRect(8 * scale, 60 * scale, 8 * scale, 20 * scale);
+
+    ctx.fillRect(24 * scale, 60 * scale, 8 * scale, 20 * scale);
+
+  } else {
+
+    ctx.fillRect(10 * scale, 60 * scale, 8 * scale, 20 * scale);
+
+    ctx.fillRect(22 * scale, 60 * scale, 8 * scale, 20 * scale);
+
+  }
+
+  
+
+  // Tail
+
+  ctx.fillRect(35 * scale, 30 * scale, 8 * scale, 8 * scale);
+
+  ctx.fillRect(40 * scale, 25 * scale, 6 * scale, 6 * scale);
+
+  ctx.fillRect(43 * scale, 20 * scale, 4 * scale, 4 * scale);
+
+  
+
+  ctx.restore();
+
+  
+
+  // Draw enhanced "Muhammad Sodiq" text with effects - positioned above Godzilla's head
+
+  drawEnhancedName(x + (godzilla.width * scale / 2), y - 5);
+
+}
+
+
+
+// Enhanced name drawing with multiple effects
+
+function drawEnhancedName(x, y) {
+
+  const text = "Muhammad Sodiq";
+
+  const fontSize = 10;
+
+  const pulse = Math.sin(frameCount * 0.1) * 0.1 + 1;
+
+  
+
+  ctx.save();
+
+  ctx.imageSmoothingEnabled = true;
+
+  ctx.textAlign = "center";
+
+  ctx.textBaseline = "bottom";
+
+  
+
+  // Measure text for banner
+
+  ctx.font = `bold ${fontSize}px 'Bangers', cursive`;
+
+  const textMetrics = ctx.measureText(text);
+
+  const textWidth = textMetrics.width;
+
+  const textHeight = fontSize;
+
+  
+
+  // Animated rainbow gradient
+
+  const gradient = ctx.createLinearGradient(
+
+    x - textWidth / 2, y - textHeight,
+
+    x + textWidth / 2, y - textHeight
+
+  );
+
+  
+
+  const hue = (frameCount * 2) % 360;
+
+  gradient.addColorStop(0, `hsl(${hue}, 100%, 50%)`);
+
+  gradient.addColorStop(0.5, `hsl(${(hue + 60) % 360}, 100%, 50%)`);
+
+  gradient.addColorStop(1, `hsl(${(hue + 120) % 360}, 100%, 50%)`);
+
+  
+
+  // Draw banner background with glow
+
+  const bannerPadding = 12;
+
+  const bannerY = y - textHeight - bannerPadding;
+
+  const bannerHeight = textHeight + bannerPadding * 2;
+
+  
+
+  // Outer glow
+
+  const glowIntensity = Math.sin(frameCount * 0.15) * 0.3 + 0.7;
+
+  ctx.shadowColor = `rgba(${Math.sin(frameCount * 0.1) * 127 + 128}, ${Math.sin(frameCount * 0.1 + 2) * 127 + 128}, 255, ${glowIntensity})`;
+
+  ctx.shadowBlur = 20 * pulse;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+
+  ctx.beginPath();
+
+  ctx.roundRect(x - textWidth / 2 - bannerPadding, bannerY, textWidth + bannerPadding * 2, bannerHeight, 8);
+
+  ctx.fill();
+
+  
+
+  // Banner background with gradient
+
+  const bannerGradient = ctx.createLinearGradient(x - textWidth / 2, bannerY, x - textWidth / 2, bannerY + bannerHeight);
+
+  bannerGradient.addColorStop(0, "rgba(255, 255, 255, 0.9)");
+
+  bannerGradient.addColorStop(1, "rgba(240, 240, 255, 0.9)");
+
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = bannerGradient;
+
+  ctx.beginPath();
+
+  ctx.roundRect(x - textWidth / 2 - bannerPadding, bannerY, textWidth + bannerPadding * 2, bannerHeight, 8);
+
+  ctx.fill();
+
+  
+
+  // Border around banner
+
+  ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
+
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+
+  ctx.roundRect(x - textWidth / 2 - bannerPadding, bannerY, textWidth + bannerPadding * 2, bannerHeight, 8);
+
+  ctx.stroke();
+
+  
+
+  // Multiple shadow layers for depth
+
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+
+  ctx.shadowBlur = 8;
+
+  ctx.shadowOffsetX = 3;
+
+  ctx.shadowOffsetY = 3;
+
+  
+
+  // Outer glow text
+
+  ctx.font = `bold ${fontSize * 1.05}px 'Bangers', cursive`;
+
+  ctx.fillStyle = `rgba(${Math.sin(frameCount * 0.1) * 127 + 128}, ${Math.sin(frameCount * 0.1 + 2) * 127 + 128}, 255, 0.3)`;
+
+  ctx.fillText(text, x, y);
+
+  
+
+  // Main text with rainbow gradient
+
+  ctx.shadowColor = "rgba(255, 255, 255, 0.8)";
+
+  ctx.shadowBlur = 6 * pulse;
+
+  ctx.shadowOffsetX = 2;
+
+  ctx.shadowOffsetY = 2;
+
+  ctx.font = `bold ${fontSize}px 'Bangers', cursive`;
+
+  ctx.fillStyle = gradient;
+
+  ctx.fillText(text, x, y);
+
+  
+
+  // Sparkle overlay
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+
+  ctx.font = `bold ${fontSize * 0.3}px 'Bangers', cursive`;
+
+  const sparkleX = x - textWidth / 2 + (frameCount * 3) % textWidth;
+
+  ctx.fillText("✨", sparkleX, y - textHeight / 2);
+
+  
+
+  ctx.restore();
+
+  
+
+  // Spawn text particles occasionally
+
+  if (Math.random() < 0.1) {
+
+    for (let i = 0; i < 3; i++) {
+
+      textParticles.push({
+
+        x: x + (Math.random() - 0.5) * textWidth,
+
+        y: y - textHeight / 2,
+
+        vx: (Math.random() - 0.5) * 2,
+
+        vy: -Math.random() * 2 - 1,
+
+        size: 2 + Math.random() * 3,
+
+        alpha: 1,
+
+        color: `hsl(${(hue + Math.random() * 60) % 360}, 100%, 60%)`,
+
+        life: 30 + Math.random() * 20
+
+      });
+
+    }
+
+  }
+
+}
+
+
+
+// Draw Gorilla
+
+function drawGorilla(gorilla) {
+
+  const x = gorilla.x;
+
+  const y = gorilla.y;
+
+  const w = gorilla.width;
+
+  const h = gorilla.height;
+
+  const scale = 1.5;
+
+  
+
+  ctx.save();
+
+  ctx.imageSmoothingEnabled = false;
+
+  
+
+  // Shadow effect
+
+  ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+
+  ctx.shadowBlur = 10;
+
+  ctx.shadowOffsetX = 4;
+
+  ctx.shadowOffsetY = 4;
+
+  
+
+  // Gorilla color (dark brown/black)
+
+  const gorillaColor = "#2c1810";
+
+  const gorillaLight = "#4a2c1a";
+
+  
+
+  ctx.fillStyle = gorillaColor;
+
+  
+
+  // Animated running cycle
+
+  const runFrame = Math.floor(frameCount / 4) % 2;
+
+  
+
+  // Body
+
+  ctx.fillRect(x + 5 * scale, y + 15 * scale, 20 * scale, 25 * scale);
+
+  
+
+  // Head
+
+  ctx.fillRect(x + 8 * scale, y + 0 * scale, 14 * scale, 18 * scale);
+
+  
+
+  // Face lighter area
+
+  ctx.fillStyle = gorillaLight;
+
+  ctx.fillRect(x + 10 * scale, y + 3 * scale, 10 * scale, 8 * scale);
+
+  
+
+  // Eyes
+
+  ctx.fillStyle = "#fff";
+
+  ctx.fillRect(x + 11 * scale, y + 5 * scale, 2 * scale, 2 * scale);
+
+  ctx.fillRect(x + 17 * scale, y + 5 * scale, 2 * scale, 2 * scale);
+
+  
+
+  ctx.fillStyle = "#000";
+
+  ctx.fillRect(x + 11.5 * scale, y + 5.5 * scale, 1 * scale, 1 * scale);
+
+  ctx.fillRect(x + 17.5 * scale, y + 5.5 * scale, 1 * scale, 1 * scale);
+
+  
+
+  // Nose
+
+  ctx.fillStyle = gorillaColor;
+
+  ctx.fillRect(x + 13 * scale, y + 9 * scale, 4 * scale, 3 * scale);
+
+  
+
+  // Mouth
+
+  ctx.strokeStyle = gorillaColor;
+
+  ctx.lineWidth = 1 * scale;
+
+  ctx.beginPath();
+
+  ctx.arc(x + 15 * scale, y + 13 * scale, 3 * scale, 0, Math.PI);
+
+  ctx.stroke();
+
+  
+
+  // Arms - animated
+
+  ctx.fillStyle = gorillaColor;
+
+  if (runFrame === 0) {
+
+    // Left arm up, right arm down
+
+    ctx.fillRect(x - 2 * scale, y + 18 * scale, 8 * scale, 12 * scale);
+
+    ctx.fillRect(x + 22 * scale, y + 28 * scale, 8 * scale, 12 * scale);
+
+  } else {
+
+    // Right arm up, left arm down
+
+    ctx.fillRect(x - 2 * scale, y + 28 * scale, 8 * scale, 12 * scale);
+
+    ctx.fillRect(x + 22 * scale, y + 18 * scale, 8 * scale, 12 * scale);
+
+  }
+
+  
+
+  // Legs - animated
+
+  if (runFrame === 0) {
+
+    ctx.fillRect(x + 7 * scale, y + 40 * scale, 6 * scale, 10 * scale);
+
+    ctx.fillRect(x + 17 * scale, y + 40 * scale, 6 * scale, 10 * scale);
+
+  } else {
+
+    ctx.fillRect(x + 5 * scale, y + 40 * scale, 6 * scale, 10 * scale);
+
+    ctx.fillRect(x + 19 * scale, y + 40 * scale, 6 * scale, 10 * scale);
+
+  }
+
+  
+
+  // Chest patch
+
+  ctx.fillStyle = gorillaLight;
+
+  ctx.fillRect(x + 8 * scale, y + 20 * scale, 14 * scale, 8 * scale);
+
+  
+
+  ctx.restore();
+
+}
+
+
+
+// Draw clouds with enhanced effects
+
+function drawClouds() {
+
+  clouds.forEach(cloud => {
+
+    ctx.save();
+
+    
+
+    // Cloud shadow
+
+    ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
+
+    ctx.shadowBlur = 15;
+
+    ctx.shadowOffsetX = 5;
+
+    ctx.shadowOffsetY = 5;
+
+    
+
+    // Cloud gradient
+
+    const cloudGradient = ctx.createRadialGradient(
+
+      cloud.x + cloud.width / 2, cloud.y,
+
+      0,
+
+      cloud.x + cloud.width / 2, cloud.y,
+
+      cloud.width / 2
+
+    );
+
+    cloudGradient.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+
+    cloudGradient.addColorStop(1, "rgba(255, 255, 255, 0.7)");
+
+    ctx.fillStyle = cloudGradient;
+
+    
+
+    // Draw cloud with multiple circles for fluffy effect
+
+    ctx.beginPath();
+
+    ctx.arc(cloud.x, cloud.y, cloud.width / 3, 0, Math.PI * 2);
+
+    ctx.arc(cloud.x + cloud.width / 3, cloud.y, cloud.width / 2.5, 0, Math.PI * 2);
+
+    ctx.arc(cloud.x + cloud.width / 1.5, cloud.y, cloud.width / 3, 0, Math.PI * 2);
+
+    ctx.arc(cloud.x + cloud.width / 2, cloud.y - cloud.height / 3, cloud.width / 4, 0, Math.PI * 2);
+
+    ctx.fill();
+
+    
+
+    // Inner highlight
+
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+
+    ctx.beginPath();
+
+    ctx.arc(cloud.x + cloud.width / 4, cloud.y - 5, cloud.width / 5, 0, Math.PI * 2);
+
+    ctx.fill();
+
+    
+
+    ctx.restore();
+
+  });
+
+}
+
+
+
+// Draw ground with enhanced texture and effects
+
+function drawGround() {
+
+  const groundY = 380;
+
+  
+
+  // Ground base with gradient
+
+  const groundGradient = ctx.createLinearGradient(0, groundY, 0, canvas.height);
+
+  groundGradient.addColorStop(0, "#f7f7f7");
+
+  groundGradient.addColorStop(1, "#e8e8e8");
+
+  ctx.fillStyle = groundGradient;
+
+  ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+  
+
+  // Ground shadow/ambient effect
+
+  ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
+
+  ctx.shadowBlur = 10;
+
+  ctx.shadowOffsetY = 2;
+
+  
+
+  // Main ground line with enhanced styling
+
+  ctx.strokeStyle = "#535353";
+
+  ctx.lineWidth = 4;
+
+  ctx.beginPath();
+
+  ctx.moveTo(0, groundY);
+
+  ctx.lineTo(canvas.width, groundY);
+
+  ctx.stroke();
+
+  
+
+  // Secondary line for depth
+
+  ctx.shadowBlur = 0;
+
+  ctx.strokeStyle = "#616161";
+
+  ctx.lineWidth = 1;
+
+  ctx.beginPath();
+
+  ctx.moveTo(0, groundY + 1);
+
+  ctx.lineTo(canvas.width, groundY + 1);
+
+  ctx.stroke();
+
+  
+
+  // Enhanced ground texture pattern with variation
+
+  ctx.strokeStyle = "#d0d0d0";
+
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i < canvas.width; i += 40) {
+
+    const x = (i + groundOffset) % 40;
+
+    const variation = Math.sin((x + frameCount * 0.5) * 0.1) * 2;
+
+    ctx.beginPath();
+
+    ctx.moveTo(x, groundY + 5 + variation);
+
+    ctx.lineTo(x + 20, groundY + 5 + variation);
+
+    ctx.stroke();
+
+  }
+
+  
+
+  // Subtle ground highlights
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+
+  for (let i = 0; i < canvas.width; i += 60) {
+
+    const x = (i + groundOffset * 0.5) % 60;
+
+    ctx.fillRect(x, groundY + 8, 30, 2);
+
+  }
+
+}
+
+
+
+// Draw particles
+
+function drawParticles() {
+
+  // Draw collision particles
+
+  particles.forEach((particle, index) => {
+
+    ctx.fillStyle = particle.color;
+
+    ctx.globalAlpha = particle.alpha;
+
+    ctx.beginPath();
+
+    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+
+  });
+
+  
+
+  // Draw text particles
+
+  textParticles.forEach((particle, index) => {
+
+    ctx.fillStyle = particle.color;
+
+    ctx.globalAlpha = particle.alpha;
+
+    ctx.beginPath();
+
+    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+
+  });
+
+}
+
+
+
+// Add particle effect
+
+function addParticles(x, y) {
+
+  for (let i = 0; i < 10; i++) {
+
+    particles.push({
+
+      x: x,
+
+      y: y,
+
+      vx: (Math.random() - 0.5) * 4,
+
+      vy: (Math.random() - 0.5) * 4,
+
+      size: 2 + Math.random() * 3,
+
+      alpha: 1,
+
+      color: "#535353"
+
+    });
+
+  }
+
+}
+
+
+
+function jump() {
+
+  if (!godzilla.jumping) {
+
+    godzilla.dy = jumpForce;
+
+    godzilla.jumping = true;
+
+  }
+
+}
+
+
+
+function resetGame() {
+
+  score = 0;
+
+  isGameOver = false;
+
+  godzilla.y = 260;
+
+  godzilla.dy = 0;
+
+  godzilla.jumping = false;
+
+  gorillas = [];
+
+  birds = [];
+
+  particles = [];
+
+  gameSpeed = baseGameSpeed;
+
+  frameCount = 0;
+
+  update();
+
+}
+
+
+
+function spawnGorilla() {
+
+  gorillas.push({
+
+    x: canvas.width,
+
+    y: 330,  // Ground level (ground is at 380, gorilla height is 50, so 380-50=330)
+
+    width: 30,
+
+    height: 50
+
+  });
+
+}
+
+
+
+// Spawn bird (like Chrome Dino)
+
+function spawnBird() {
+
+  const heights = [200, 250, 280]; // Different flight heights
+
+  birds.push({
+
+    x: canvas.width,
+
+    y: heights[Math.floor(Math.random() * heights.length)],
+
+    width: 46,
+
+    height: 40
+
+  });
+
+}
+
+
+
+// Draw bird (Chrome Dino style)
+
+function drawBird(bird) {
+
+  const x = bird.x;
+
+  const y = bird.y;
+
+  const scale = 1;
+
+  
+
+  ctx.save();
+
+  ctx.imageSmoothingEnabled = false;
+
+  
+
+  // Bird color (like Chrome Dino)
+
+  const birdColor = "#535353";
+
+  ctx.fillStyle = birdColor;
+
+  
+
+  // Animated wing flapping
+
+  const wingFrame = Math.floor(frameCount / 5) % 2;
+
+  
+
+  // Body
+
+  ctx.fillRect(x + 10, y + 15, 20, 8);
+
+  
+
+  // Head
+
+  ctx.fillRect(x + 5, y + 10, 12, 10);
+
+  
+
+  // Beak
+
+  ctx.fillRect(x, y + 13, 6, 4);
+
+  
+
+  // Wings - animated
+
+  if (wingFrame === 0) {
+
+    // Wings up
+
+    ctx.fillRect(x + 12, y + 5, 16, 8);
+
+  } else {
+
+    // Wings down
+
+    ctx.fillRect(x + 12, y + 20, 16, 8);
+
+  }
+
+  
+
+  // Eye
+
+  ctx.fillStyle = "#000";
+
+  ctx.fillRect(x + 7, y + 12, 2, 2);
+
+  
+
+  ctx.restore();
+
+}
+
+
+
+function update() {
+
+  frameCount++;
+
+  
+
+  if (isGameOver) {
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    
+
+    ctx.fillStyle = "#fff";
+
+    ctx.font = "bold 60px 'Segoe UI', Arial, sans-serif";
+
+    ctx.textAlign = "center";
+
+    ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 40);
+
+    
+
+    ctx.font = "bold 30px 'Segoe UI', Arial, sans-serif";
+
+    ctx.fillText("Press SPACE to restart", canvas.width / 2, canvas.height / 2 + 40);
+
+    
+
+    ctx.font = "24px 'Segoe UI', Arial, sans-serif";
+
+    ctx.fillText("Final Score: " + score, canvas.width / 2, canvas.height / 2 + 100);
+
+    
+
+    return;
+
+  }
+
+  
+
+  // Clear with sky gradient
+
+  const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+
+  skyGradient.addColorStop(0, "#f7f7f7");
+
+  skyGradient.addColorStop(1, "#ffffff");
+
+  ctx.fillStyle = skyGradient;
+
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  
+
+  // Update and draw clouds
+
+  clouds.forEach(cloud => {
+
+    cloud.x -= cloud.speed;
+
+    if (cloud.x + cloud.width < 0) {
+
+      cloud.x = canvas.width + cloud.width;
+
+      cloud.y = 50 + Math.random() * 100;
+
+    }
+
+  });
+
+  drawClouds();
+
+  
+
+  // Draw ground
+
+  groundOffset = (groundOffset + gameSpeed) % 40;
+
+  drawGround();
+
+  
+
+  // Update Godzilla physics
+
+  godzilla.dy += gravity;
+
+  godzilla.y += godzilla.dy;
+
+  
+
+  if (godzilla.y > 260) {
+
+    godzilla.y = 260;
+
+    godzilla.dy = 0;
+
+    godzilla.jumping = false;
+
+  }
+
+  
+
+  // Spawn gorillas
+
+  if (Math.random() < 0.008 && gorillas.length < 3) {
+
+    spawnGorilla();
+
+  }
+
+  
+
+  // Spawn birds (like Chrome Dino)
+
+  if (Math.random() < 0.005 && birds.length < 2) {
+
+    spawnBird();
+
+  }
+
+  
+
+  // Update gorillas
+
+  gorillas.forEach((gorilla, index) => {
+
+    gorilla.x -= gameSpeed;
+
+    
+
+    // Collision detection
+
+    if (
+
+      godzilla.x < gorilla.x + gorilla.width &&
+
+      godzilla.x + godzilla.width > gorilla.x &&
+
+      godzilla.y < gorilla.y + gorilla.height &&
+
+      godzilla.y + godzilla.height > gorilla.y
+
+    ) {
+
+      isGameOver = true;
+
+      addParticles(gorilla.x + gorilla.width / 2, gorilla.y + gorilla.height / 2);
+
+      
+
+      if (score > highScore) {
+
+        highScore = score;
+
+        localStorage.setItem('dinoHighScore', highScore);
+
+        document.getElementById('highScoreDisplay').textContent = highScore;
+
+      }
+
+    }
+
+    
+
+    if (gorilla.x + gorilla.width < 0) {
+
+      gorillas.splice(index, 1);
+
+      score += 10;
+
+      gameSpeed = baseGameSpeed + Math.floor(score / 100) * 0.5;
+
+    }
+
+  });
+
+  
+
+  // Update birds
+
+  birds.forEach((bird, index) => {
+
+    bird.x -= gameSpeed * 1.2; // Birds move slightly faster
+
+    
+
+    // Collision detection with Godzilla
+
+    if (
+
+      godzilla.x < bird.x + bird.width &&
+
+      godzilla.x + godzilla.width > bird.x &&
+
+      godzilla.y < bird.y + bird.height &&
+
+      godzilla.y + godzilla.height > bird.y
+
+    ) {
+
+      isGameOver = true;
+
+      addParticles(bird.x + bird.width / 2, bird.y + bird.height / 2);
+
+      
+
+      if (score > highScore) {
+
+        highScore = score;
+
+        localStorage.setItem('dinoHighScore', highScore);
+
+        document.getElementById('highScoreDisplay').textContent = highScore;
+
+      }
+
+    }
+
+    
+
+    // Remove bird when off screen
+
+    if (bird.x + bird.width < 0) {
+
+      birds.splice(index, 1);
+
+      score += 15; // Birds worth more points
+
+      gameSpeed = baseGameSpeed + Math.floor(score / 100) * 0.5;
+
+    }
+
+  });
+
+  
+
+  // Update particles
+
+  particles.forEach((particle, index) => {
+
+    particle.x += particle.vx;
+
+    particle.y += particle.vy;
+
+    particle.alpha -= 0.02;
+
+    particle.size *= 0.98;
+
+    
+
+    if (particle.alpha <= 0) {
+
+      particles.splice(index, 1);
+
+    }
+
+  });
+
+  
+
+  // Update text particles
+
+  textParticles.forEach((particle, index) => {
+
+    particle.x += particle.vx;
+
+    particle.y += particle.vy;
+
+    particle.alpha -= 0.03;
+
+    particle.size *= 0.99;
+
+    particle.life--;
+
+    
+
+    if (particle.alpha <= 0 || particle.life <= 0) {
+
+      textParticles.splice(index, 1);
+
+    }
+
+  });
+
+  
+
+  // Draw everything
+
+  drawGodzilla();
+
+  gorillas.forEach(gorilla => drawGorilla(gorilla));
+
+  birds.forEach(bird => drawBird(bird));
+
+  drawParticles();
+
+  
+
+  // Update score display
+
+  document.getElementById('scoreDisplay').textContent = score;
+
+  
+
+  requestAnimationFrame(update);
+
+}
+
+
+
+// Polyfill for roundRect if needed
+
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+
+    if (w < 2 * r) r = w / 2;
+
+    if (h < 2 * r) r = h / 2;
+
+    this.beginPath();
+
+    this.moveTo(x + r, y);
+
+    this.lineTo(x + w - r, y);
+
+    this.quadraticCurveTo(x + w, y, x + w, y + r);
+
+    this.lineTo(x + w, y + h - r);
+
+    this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+
+    this.lineTo(x + r, y + h);
+
+    this.quadraticCurveTo(x, y + h, x, y + h - r);
+
+    this.lineTo(x, y + r);
+
+    this.quadraticCurveTo(x, y, x + r, y);
+
+    this.closePath();
+
+    return this;
+
+  };
+
+}
+
+
+
+window.addEventListener("keydown", (e) => {
+
+  if (e.code === "Space") {
+
+    e.preventDefault();
+
+    if (isGameOver) resetGame();
+
+    else jump();
+
+  }
+
+});
+
+
+
+canvas.addEventListener("click", jump);
+
+
+
+// Start game
+
+update();
+
+</script>
+
+</body>
+
+</html>
